@@ -5,6 +5,7 @@ class StatusProbe:
         self.cell_types = []
         self.frozen_swap_attempts = 0
         self.compare_and_swap_count = 0
+        self.jb_snapshots = []  # New list to store JB snapshots
 
     def record_swap(self):
         self.swap_count += 1
@@ -20,3 +21,6 @@ class StatusProbe:
     
     def count_frozen_cell_attempt(self):
         self.frozen_swap_attempts += 1
+
+    def record_jb_snapshot(self, snapshot):
+        self.jb_snapshots.append(snapshot)

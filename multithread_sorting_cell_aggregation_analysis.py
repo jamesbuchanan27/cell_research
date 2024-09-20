@@ -13,6 +13,7 @@ from visualization.CellGroupImage import CellGroupImage
 from modules.multithread.StatusProbe import StatusProbe
 import numpy as np
 import random
+import csv
 
 
 VALUE_LIST = [28, 34, 6, 20, 7, 89, 34, 18, 29, 51]
@@ -148,18 +149,29 @@ def is_sorted(cells):
         prev_cell = c
     return True
 
+num_digits = 10
+num_repeats = 10
+total_num_cells = num_digits * num_repeats
+cells_per_type = int(total_num_cells / 2)
+
 def prepare_sorting_list():
     # return [i for i in range(100)]
     res = []
-    for i in range(10):
-        for j in range(20):
+    for i in range(num_digits):
+        for j in range(num_repeats):
             res.append(i)
     return res
+
+# Short version that prints only the value
+def print_current_status_short(cells):
+    print([f"{c.value}-{c.threadID}-{c.cell_type[0]}" for c in cells])
+
+num_runs = 2
 
 def main(argv):
     sorting_list = prepare_sorting_list()
     # print(sorting_list)
-    for i in range(100):
+    for i in range(num_runs):
         random.shuffle(sorting_list)
         sorting_steps_for_each_run = []
         threadLock = threading.Lock()
@@ -167,7 +179,9 @@ def main(argv):
         print(f">>>>>>>>>>>>>>>>> Prepare cells to sort for experiment {i} <<<<<<<<<<<<<<<<<<<<")
         random.shuffle(sorting_list)
 
-        cells, cell_groups = create_cell_groups_based_on_value_list(sorting_list, threadLock, status_probe, 100, False, True, True)
+        cells, cell_groups = create_cell_groups_based_on_value_list(sorting_list, threadLock, status_probe, cells_per_type, True, True, False)
+        print_current_status_short(cells)
+        # print_current_status_short(cell_groups[0].cells_in_group)
         threadLock.acquire()
         print("Activating cells...")
         activate(cells, cell_groups)
@@ -175,16 +189,28 @@ def main(argv):
 
         print("Start sorting......")
         while not is_sorted(cells):
-            # print_cell_status(cells)
-            time.sleep(0.0001)
+            # print_current_status_short(cells)
+            time.sleep(0.001)
         threadLock.acquire()
         kill_all_thread(cells, cell_groups)
         threadLock.release()
         print(">>>>>>>>>>>>>>>>> Sorting complete, killed all threads. <<<<<<<<<<<<<<<<<<<<\n")
+        print_current_status_short(cells)
+
         #print(status_probe.cell_types[0])
-        np.save(f'csv/cell_type_aggregation_random_dist_200_tests_bubble_selection_dup/exp_{i}', status_probe.cell_types)
-        np.save(f'csv/cell_type_aggregation_random_dist_200_tests_bubble_selection_dup/exp_{i}_sorting_steps', status_probe.sorting_steps)
-        
+        np.save(f'csv/jb/exp_{i}', status_probe.cell_types)
+        np.save(f'csv/jb/exp_{i}_sorting_steps', status_probe.sorting_steps)
+        # now save as csv
+        # save array into csv file 
+        # Save JB snapshots
+        jb_snapshots = status_probe.jb_snapshots
+                       
+
+        with open(f'csv/jb/exp_{i}_jb_snapshots.csv', 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerows(jb_snapshots)
+    
+
         # np.save(f'csv/cell_type_aggregation_random_dist_100_tests_selection_insertion/exp_{i}', status_probe.cell_types)
         # np.save(f'csv/cell_type_aggregation_random_dist_100_tests_selection_insertion/exp_{i}_sorting_steps', status_probe.sorting_steps)
 

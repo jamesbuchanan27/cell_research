@@ -2,6 +2,7 @@ import threading
 import time
 from .StatusProbe import StatusProbe
 from enum import Enum
+import sys
 
 
 class CellStatus(Enum):
@@ -61,6 +62,16 @@ class MultiThreadCell(threading.Thread):
     def take_snapshot(self):
         return [c.value for c in self.cells], [[c.group.group_id, self.cell_type_dict[c.cell_type] if c.label == 0 else c.label, c.value, 1 if c.status == CellStatus.FREEZE else 0] for c in self.cells]
     
+    def take_jb_snapshot(self, moving):
+        snapshot = []
+        snapshot.append(f"{self.value}-{self.threadID}-{self.cell_type[0]}")
+        snapshot.append(moving)
+        for cell in self.cells:
+            entry = f"{cell.value}-{cell.threadID}-{cell.cell_type[0]}"
+            snapshot.append(entry)
+        return snapshot
+
+
     def get_current_snapshot(self):
         return {"value": self.value, "group id": self.group.group_id, "group status": self.group.status, "cell status": self.status, "left": self.left_boundary, "right": self.right_boundary, "cell_type": self.cell_type, "should_move": self.should_move(), "with_lock": self.with_lock}
 
@@ -69,12 +80,14 @@ class MultiThreadCell(threading.Thread):
         self.previous_status = CellStatus.FREEZE
 
     def swap(self, target_position, skip_stats=False):
+        # print(f"Entering swap method for cell {self.value}-{self.threadID}-{self.cell_type[0]}", flush=True)
         current_cell_at_target = self.cells[int(target_position[0])]
         if self.status == CellStatus.FREEZE:
             # or current_cell_at_target.status == CellStatus.FREEZE
             if not self.tried_to_swap_with_frozen:
                 self.status_probe.count_frozen_cell_attempt()
                 self.tried_to_swap_with_frozen = True
+            # print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} is frozen, cannot swap", flush=True)
             return
         self.tried_to_swap_with_frozen = False 
         current_cell_at_target.tried_to_swap_with_frozen = False
@@ -84,6 +97,8 @@ class MultiThreadCell(threading.Thread):
         self.cells[target_position[0]] = self
         current_cell_at_target.target_position = self.current_position
         self.target_position = target_position
+        # print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} is swapping with cell {current_cell_at_target.value}-{current_cell_at_target.threadID}-{current_cell_at_target.cell_type[0]}", flush=True)
+
         if self.visualization_disabled:
             self.current_position = self.target_position
             current_cell_at_target.current_position = current_cell_at_target.target_position
@@ -96,6 +111,12 @@ class MultiThreadCell(threading.Thread):
             self.status_probe.record_sorting_step(snapshot)
             self.export_steps.append(snapshot)
             self.status_probe.record_cell_type(cell_type_snapshot)
+            
+            # Take the JB snapshot and record it in the StatusProbe
+            jb_snapshot = self.take_jb_snapshot(True)
+            self.status_probe.record_jb_snapshot(jb_snapshot)
+
+        # print(f"Exiting swap method for cell {self.value}-{self.threadID}-{self.cell_type[0]}", flush=True)
 
     def update(self):
         pass
@@ -110,4 +131,7 @@ class MultiThreadCell(threading.Thread):
 
     def run(self):
         while self.status != CellStatus.INACTIVE:
+            # print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} is active", flush=True)
             self.move()
+            # print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} is now inactive", flush=True)
+            time.sleep(0.01)  # Add a small delay to avoid busy-waiting

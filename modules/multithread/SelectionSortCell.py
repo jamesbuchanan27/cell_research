@@ -1,4 +1,3 @@
-
 import threading
 import time
 from .MultiThreadCell import MultiThreadCell, CellStatus
@@ -83,18 +82,36 @@ class SelectionSortCell(MultiThreadCell):
     def move(self):
         self.lock.acquire()
         self.with_lock = True
+        # print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} entered move method", flush=True)
+
         if self.group.status == GroupStatus.SLEEP and self.status != CellStatus.MOVING:
             self.status = CellStatus.SLEEP
         if self.should_move():
             self.status_probe.record_compare_and_swap()
+            # print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} should move", flush=True)
+
         if self.should_move_to(self.ideal_position):
-            cell_at_idea_position = self.cells[int(self.ideal_position[0])]
-            if cell_at_idea_position.status == CellStatus.ACTIVE:
+            cell_at_ideal_position = self.cells[int(self.ideal_position[0])]
+            if cell_at_ideal_position.status == CellStatus.ACTIVE:
+                other_str = f"{cell_at_ideal_position.value}-{cell_at_ideal_position.threadID}-{cell_at_ideal_position.cell_type[0]}"
+                print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} is moving to {self.ideal_position[0]} ({other_str})", flush=True)
                 self.swap(self.ideal_position)
-            # elif cell_at_idea_position.status == CellStatus.FREEZE:
-            #     cell_at_idea_position.ideal_position = (cell_at_idea_position.ideal_position[0] + 1, self.ideal_position[1])
-            #     self.move_beside_freezed_cell(self.ideal_position)
+            else:
+                print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} cannot move to {self.ideal_position[0]} (target cell not active)", flush=True)
+                self.status_probe.record_jb_snapshot(self.take_jb_snapshot(False))
+
+        else:
+            if self.within_boundary(self.ideal_position):
+                other = self.cells[int(self.ideal_position[0])]
+                other_str = f"{other.value}-{other.threadID}-{other.cell_type[0]}"
+                print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} should not move to {self.ideal_position[0]} ({other_str})", flush=True)
+                self.status_probe.record_jb_snapshot(self.take_jb_snapshot(False))
+            else:
+                print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} should not move (ideal position out of boundary)", flush=True)
+                self.status_probe.record_jb_snapshot(self.take_jb_snapshot(False))
+
+
         self.lock.release()
         self.with_lock = False
+        # print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} exited move method", flush=True)
 
-    

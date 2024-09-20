@@ -10,6 +10,9 @@ from modules.multithread.MultiThreadCell import CellStatus
 from visualization.CellImage import CellImage
 from visualization.CellGroupImage import CellGroupImage
 import random
+import time
+import csv
+
 
 
 # VALUE_LIST = [28, 34, 6, 20, 7, 89, 34, 18, 29, 51]
@@ -39,6 +42,10 @@ def create_cells_within_one_group(value_list, threadLock, swapping_count, status
 
 def print_current_status(cells):
     print([{"value": c.value, "group id": c.group.group_id, "group status": c.group.status, "cell status": c.status, "left": c.left_boundary, "right": c.right_boundary} for c in cells])
+
+# Short version that prints only the value
+def print_current_status_short(cells):
+    print([c.value for c in cells])
 
 def is_sorted(cells):
     prev_cell = cells[0]
@@ -89,11 +96,12 @@ def get_pass_in_args(argv):
 def main(argv):
     #cell_type = get_pass_in_args(argv)
     swapping_counts = []
-    for i in range(100):
+    for i in range(1):
         threadLock = threading.Lock()
         print(f">>>>>>>>>>>>>>>>> Prepare cells to sort for instance {i + 1} <<<<<<<<<<<<<<<<<<<<")
-        value_list = randomlist = random.sample(range(0, 100), 50)
+        value_list = randomlist = random.sample(range(0, 100), 5)
         status_probe = StatusProbe()
+        swapping_count = [0]  # Initialize swapping_count as a list with one element
         cells, cell_groups = create_cells_within_one_group(value_list, threadLock, swapping_count, status_probe)
         threadLock.acquire()
         print("Activating cells...")
@@ -104,8 +112,8 @@ def main(argv):
         # text = canvas.create_text(30, 30, text="3")
         print("Start sorting......")
         while not is_sorted(cells):
-            #print_current_status(cells)
-            time.sleep(0.0001)
+            print_current_status_short(cells)
+            time.sleep(0.001)
         threadLock.acquire()
         kill_all_thread(cells, cell_groups)
         threadLock.release()

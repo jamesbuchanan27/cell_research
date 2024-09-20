@@ -1,6 +1,7 @@
 
 import threading
 import time
+import sys
 from .MultiThreadCell import MultiThreadCell, CellStatus
 from .CellGroup import GroupStatus
 import random
@@ -58,18 +59,34 @@ class BubbleSortCell(MultiThreadCell):
     def move(self):
         self.lock.acquire()
         self.with_lock = True
+        # print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} entered move method", flush=True)
+
         if self.group.status == GroupStatus.SLEEP and self.status != CellStatus.MOVING:
             self.status = CellStatus.SLEEP
         if self.should_move():
             self.status_probe.record_compare_and_swap()
+            # print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} should move", flush=True)
         # new logic - random check left or right
         check_right = random.random() < 0.5
         if check_right:
             target_position = (self.current_position[0] + self.cell_vision, self.current_position[1])
         else:
             target_position = (self.current_position[0] - self.cell_vision, self.current_position[1])
+        
+        if target_position[0] < 0 or target_position[0] >= len(self.cells):
+            # print(f"Target position {target_position} is out of boundary", flush=True)
+            other_str = "Invalid Index"
+        else:
+            other = self.cells[int(target_position[0])]
+            other_str = f"{other.value}-{other.threadID}-{other.cell_type[0]}"
         if self.should_move_to(target_position, check_right):
+            print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} is moving to {target_position[0]} ({other_str})", flush=True)
             self.swap(target_position)
+        else:
+            print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} should not move to {target_position[0]} ({other_str})", flush=True)
+            # jb_snapshot = self.take_jb_snapshot(False)
+            self.status_probe.record_jb_snapshot(self.take_jb_snapshot(False))
         self.lock.release()
         self.with_lock = False
+        # print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} exited move method", flush=True)
 

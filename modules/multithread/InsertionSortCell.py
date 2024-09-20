@@ -84,6 +84,8 @@ class InsertionSortCell(MultiThreadCell):
     
     def move(self):
         self.lock.acquire()
+        # print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} entered move method", flush=True)
+
         if not self.is_enable_to_move():
             self.lock.release()
             return
@@ -93,10 +95,15 @@ class InsertionSortCell(MultiThreadCell):
         
         if self.group.status == GroupStatus.SLEEP and self.status != CellStatus.MOVING:
             self.status = CellStatus.SLEEP
+
         target_position = (self.current_position[0] - self.cell_vision, self.current_position[1])
         # if self.status == CellStatus.FREEZE:
         #         print("xxxxxxxxxxxxxxx4")
         if self.should_move_to(target_position):
             self.swap(target_position)
+        else:
+            print(f"Cell {self.value}-{self.threadID}-{self.cell_type[0]} should not move to {target_position[0]}", flush=True)
+            self.status_probe.record_jb_snapshot(self.take_jb_snapshot(False))
+
         self.lock.release()
 
